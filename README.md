@@ -39,11 +39,13 @@ require "win_toaster"
 
 WinToaster.notify(title: "Build finished", message: "All tests are green")
 
-# An optional third line, and a custom AppUserModelId:
+# An optional third line, images, and a custom AppUserModelId:
 WinToaster.notify(
   title:   "Deploy finished",
   message: "Production has been updated",
   detail:  "took 3m",
+  image:   "/mnt/c/Users/me/Pictures/icon.png",  # small icon (appLogoOverride)
+  hero:    "/mnt/c/Users/me/Pictures/banner.png", # large banner image
   app_id:  '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe'
 )
 ```
@@ -51,11 +53,21 @@ WinToaster.notify(
 `WinToaster.notify` returns `true` on success and raises `WinToaster::Error`
 on failure (e.g. when `powershell.exe` cannot be found).
 
+#### Images
+
+`image:` is shown as the small icon (`appLogoOverride`) and `hero:` as the large
+banner image. Both take a file path. From WSL you can pass a Linux/WSL path
+(e.g. `/mnt/c/...` or `/home/...`); it is converted to a Windows path with
+`wslpath -w` automatically. On native Windows the path is used as-is. The path
+must be absolute and point to a file Windows can read; an unreadable path is
+silently dropped by Windows (the rest of the toast still shows).
+
 ### CLI
 
 ```bash
 win_toaster "Build finished" "All tests are green"
 win_toaster "Build finished" "All green" --detail "took 3m"
+win_toaster "Deploy finished" "Production updated" --image /mnt/c/Users/me/Pictures/icon.png
 win_toaster --help
 ```
 

@@ -17,20 +17,28 @@ module WinToaster
     # The Windows PowerShell executable, resolved from PATH inside WSL.
     POWERSHELL = "powershell.exe"
 
-    attr_reader :title, :message, :detail, :app_id
+    attr_reader :title, :message, :detail, :image, :hero, :app_id
 
-    def initialize(title:, message:, detail: nil, app_id: DEFAULT_APP_ID)
+    # +image+ is shown as the small icon (appLogoOverride) and +hero+ as the
+    # large banner image. Both take a file path; from WSL a Linux/WSL path
+    # (e.g. /mnt/c/... or /home/...) is accepted and converted to a Windows
+    # path automatically.
+    def initialize(title:, message:, detail: nil, image: nil, hero: nil, app_id: DEFAULT_APP_ID)
       @title = title
       @message = message
       @detail = detail
+      @image = image
+      @hero = hero
       @app_id = app_id
     end
 
     # Builds the toast XML using the ToastGeneric template. Text nodes are
-    # XML-escaped. The +detail+ line is omitted when nil.
+    # XML-escaped. The +detail+ line and image nodes are omitted when nil.
     def build_xml
-      texts = [title, message, detail].compact.map { |t| "<text>#{escape_xml(t)}</text>" }
-      %(<toast><visual><binding template="ToastGeneric">#{texts.join}</binding></visual></toast>)
+      nodes = [title, message, detail].compact.map { |t| "<text>#{escape_xml(t)}</text>" }
+      nodes << image_node("appLogoOverride", image) if image
+      nodes << image_node("hero", hero) if hero
+      %(<toast><visual><binding template="ToastGeneric">#{nodes.join}</binding></visual></toast>)
     end
 
     # The PowerShell script that decodes the XML and shows the toast.
@@ -73,6 +81,22 @@ module WinToaster
     end
 
     private
+
+    def image_node(placement, path)
+      %(<image placement="#{placement}" src="#{escape_xml(windows_path(path))}"/>)
+    end
+
+    # Converts a file path to a Windows path that the toast can load. From WSL,
+    # `wslpath -w` maps the path (e.g. /mnt/c/... or /home/...) to its Windows
+    # form. On native Windows wslpath is absent, so the absolute path is used
+    # as-is.
+    def windows_path(path)
+      expanded = File.expand_path(path)
+      out, _err, status = Open3.capture3("wslpath", "-w", expanded)
+      status.success? ? out.strip : expanded
+    rescue Errno::ENOENT
+      expanded
+    end
 
     def escape_xml(text)
       text.to_s
